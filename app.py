@@ -16,7 +16,7 @@ PAYSTACK_SECRET_KEY  = os.environ.get("PAYSTACK_SECRET_KEY",  "sk_test_b2a2d4c3a
 PAYSTACK_PUBLIC_KEY  = os.environ.get("PAYSTACK_PUBLIC_KEY",  "pk_test_894074e13163743d7cff12b241c9825afaa2c6a9")
 NOWPAYMENTS_API_KEY  = os.environ.get("NOWPAYMENTS_API_KEY",  "SN64P17-BR1486Q-PW2BBGQ-BF4HA6A")
 NOWPAYMENTS_IPN_SECRET = os.environ.get("NOWPAYMENTS_IPN_SECRET", "YXBW8QlFIDIv/iDpP4c7EmmMNIQrtNRd")
-APP_BASE_URL         = os.environ.get("APP_BASE_URL", "http://localhost:5000")
+APP_BASE_URL         = os.environ.get("APP_BASE_URL", "https://flowpay-5t8q.onrender.com")
 
 DB_PATH = "flowpay.db"
 
@@ -62,20 +62,14 @@ def get_db():
 def get_usd_ngn_rate():
     """Try to get live rate; fall back to current market rate."""
     try:
-        r = requests.get(
-            "https://api.paystack.co/bank",
-            headers={"Authorization": f"Bearer {PAYSTACK_SECRET_KEY}"},
-            timeout=5
-        )
-        # Paystack doesn't expose rate directly; use open exchange as fallback
+        r = requests.get("https://open.er-api.com/v6/latest/USD", timeout=4)
+        data = r.json()
+        ngn = data.get("rates", {}).get("NGN")
+        if ngn and ngn > 100:
+            return float(ngn)
     except Exception:
         pass
-    try:
-        r = requests.get("https://open.er-api.com/v6/latest/USD", timeout=5)
-        data = r.json()
-        return data["rates"]["NGN"]
-    except Exception:
-        return 1380.0   # current mid-market fallback (June 2026)
+    return 1580.0   # fallback rate (June 2026)
 
 # ── NOWPayments helpers ────────────────────────────────────────────────────────
 def nowpayments_get_min_amount(currency):
@@ -144,16 +138,20 @@ def deposit_init():
             "rate": rate
         }
     }
-    r = requests.post(
-        "https://api.paystack.co/transaction/initialize",
-        headers={"Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
-                 "Content-Type": "application/json"},
-        json=payload,
-        timeout=15
-    )
-    resp = r.json()
+    try:
+        r = requests.post(
+            "https://api.paystack.co/transaction/initialize",
+            headers={"Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
+                     "Content-Type": "application/json"},
+            json=payload,
+            timeout=20
+        )
+        resp = r.json()
+    except Exception as e:
+        return jsonify({"error": f"Could not reach Paystack: {str(e)}"}), 500
+
     if not resp.get("status"):
-        return jsonify({"error": resp.get("message", "Paystack error")}), 500
+        return jsonify({"error": resp.get("message", "Paystack error: " + str(resp))}), 500
 
     return jsonify({
         "authorization_url": resp["data"]["authorization_url"],
