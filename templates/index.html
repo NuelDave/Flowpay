@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>FlowPay — USD In, Crypto Out</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:    #060B18;
+    --surface: #0D1627;
+    --card:    #111C35;
+    --border:  #1E2F52;
+    --blue:    #1A6FFF;
+    --blue2:   #4D94FF;
+    --green:   #00C896;
+    --red:     #FF4D6A;
+    --amber:   #FFB547;
+    --white:   #F0F4FF;
+    --muted:   #6B80A8;
+    --mono:    'JetBrains Mono', monospace;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--navy);
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── Animated background grid ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(26,111,255,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(26,111,255,.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Nav ── */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(20px);
+    background: rgba(6,11,24,.85);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+  }
+
+  .logo {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: -.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 12px var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: .6; transform: scale(.8); }
+  }
+
+  .nav-right { display: flex; align-items: center; gap: 16px; }
+
+  .zero-badge {
+    background: rgba(0,200,150,.12);
+    border: 1px solid rgba(0,200,150,.3);
+    color: var(--green);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 72px 24px 48px;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  .hero-eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--blue2);
+    margin-bottom: 20px;
+  }
+
+  .hero h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(32px, 6vw, 52px);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -1.5px;
+    margin-bottom: 16px;
+  }
+
+  .hero h1 span { color: var(--green); }
+
+  .hero p {
+    color: var(--muted);
+    font-size: 16px;
+    margin-bottom: 32px;
+  }
+
+  /* ── Flow diagram ── */
+  .flow-diagram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin: 0 auto 48px;
+    max-width: 480px;
+  }
+
+  .flow-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .flow-icon {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+
+  .flow-icon.bank  { background: rgba(26,111,255,.15); border: 1px solid rgba(26,111,255,.3); }
+  .flow-icon.plat  { background: rgba(0,200,150,.15);  border: 1px solid rgba(0,200,150,.3); }
+  .flow-icon.crypto{ background: rgba(255,181,71,.15);  border: 1px solid rgba(255,181,71,.3); }
+
+  .flow-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  .flow-arrow {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    margin-bottom: 24px;
+  }
+
+  .flow-line {
+    flex: 1;
+    height: 2px;
+    position: relative;
+    overflow: hidden;
+    background: var(--border);
+    border-radius: 2px;
+  }
+
+  .flow-line::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, var(--blue), transparent);
+    animation: flowAnim 2s infinite linear;
+  }
+
+  @keyframes flowAnim {
+    to { left: 200%; }
+  }
+
+  .flow-chevron { color: var(--muted); font-size: 14px; }
+
+  /* ── Main panel ── */
+  .main {
+    position: relative;
+    z-index: 1;
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 0 16px 80px;
+  }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 4px;
+    margin-bottom: 20px;
+  }
+
+  .tab-btn {
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .tab-btn.active {
+    background: var(--card);
+    color: var(--white);
+    box-shadow: 0 2px 12px rgba(0,0,0,.4);
+  }
+
+  .tab-btn .tab-icon { font-size: 16px; }
+
+  /* ── Card ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 28px;
+  }
+
+  .card-header {
+    margin-bottom: 24px;
+  }
+
+  .card-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    margin-bottom: 4px;
+  }
+
+  .card-sub {
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  /* ── Form elements ── */
+  .field { margin-bottom: 16px; }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  input, select {
+    width: 100%;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 16px;
+    color: var(--white);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px;
+    outline: none;
+    transition: border-color .2s;
+  }
+
+  input::placeholder { color: var(--muted); }
+
+  input:focus, select:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(26,111,255,.12);
+  }
+
+  select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B80A8' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 40px; }
+
+  select option { background: var(--card); }
+
+  /* ── Amount quick-picks ── */
+  .quick-picks {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .qp-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: all .15s;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .qp-btn:hover, .qp-btn.active {
+    border-color: var(--blue);
+    color: var(--blue2);
+    background: rgba(26,111,255,.08);
+  }
+
+  /* ── Fee breakdown ── */
+  .breakdown {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin: 20px 0;
+    display: none;
+  }
+
+  .breakdown.show { display: block; }
+
+  .brow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    padding: 4px 0;
+  }
+
+  .brow .label { color: var(--muted); }
+
+  .brow .value {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .brow.total {
+    border-top: 1px solid var(--border);
+    margin-top: 8px;
+    padding-top: 12px;
+  }
+
+  .brow.total .label { color: var(--white); font-weight: 600; }
+  .brow.total .value { color: var(--green); font-size: 15px; font-weight: 700; }
+
+  .fee-zero {
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  /* ── Rate pill ── */
+  .rate-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(26,111,255,.1);
+    border: 1px solid rgba(26,111,255,.2);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: var(--blue2);
+    font-family: var(--mono);
+    margin-bottom: 16px;
+  }
+
+  .rate-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--blue2); }
+
+  /* ── Crypto grid ── */
+  .coin-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .coin-btn {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 8px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    transition: all .15s;
+  }
+
+  .coin-btn:hover { border-color: var(--muted); }
+
+  .coin-btn.selected {
+    border-color: var(--blue);
+    background: rgba(26,111,255,.1);
+  }
+
+  .coin-emoji { font-size: 22px; }
+
+  .coin-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--white);
+  }
+
+  .coin-net {
+    font-size: 10px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  /* ── Primary button ── */
+  .btn-primary {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--blue) 0%, #0A4FCC 100%);
+    color: #fff;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,.1), transparent);
+    opacity: 0;
+    transition: opacity .2s;
+  }
+
+  .btn-primary:hover:not(:disabled)::before { opacity: 1; }
+  .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(26,111,255,.4); }
+  .btn-primary:active:not(:disabled) { transform: translateY(0); }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* ── Status banner ── */
+  .status-banner {
+    display: none;
+    padding: 14px 18px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 20px;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .status-banner.show { display: flex; }
+  .status-banner.success { background: rgba(0,200,150,.1); border: 1px solid rgba(0,200,150,.3); color: var(--green); }
+  .status-banner.error   { background: rgba(255,77,106,.1);  border: 1px solid rgba(255,77,106,.3);  color: var(--red); }
+  .status-banner.info    { background: rgba(26,111,255,.1);  border: 1px solid rgba(26,111,255,.3);  color: var(--blue2); }
+
+  /* ── History table ── */
+  .history-section {
+    position: relative;
+    z-index: 1;
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 0 16px 80px;
+  }
+
+  .history-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 14px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tx-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 8px;
+  }
+
+  .tx-left { display: flex; align-items: center; gap: 12px; }
+
+  .tx-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+
+  .tx-icon.dep  { background: rgba(26,111,255,.15); }
+  .tx-icon.wd   { background: rgba(255,181,71,.15); }
+
+  .tx-desc { font-size: 13px; font-weight: 500; }
+  .tx-time { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .tx-right { text-align: right; }
+  .tx-amount { font-family: var(--mono); font-size: 14px; font-weight: 600; }
+  .tx-amount.dep { color: var(--green); }
+  .tx-amount.wd  { color: var(--amber); }
+
+  .tx-status {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+  }
+
+  .tx-status.success { background: rgba(0,200,150,.15); color: var(--green); }
+  .tx-status.pending { background: rgba(255,181,71,.15); color: var(--amber); }
+  .tx-status.failed  { background: rgba(255,77,106,.15); color: var(--red); }
+
+  /* ── Balance card ── */
+  .balance-card {
+    background: linear-gradient(135deg, #0D1A3A, #0A1228);
+    border: 1px solid rgba(26,111,255,.25);
+    border-radius: 18px;
+    padding: 24px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .balance-card::after {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(26,111,255,.15), transparent 70%);
+    pointer-events: none;
+  }
+
+  .balance-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .balance-amount {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -1px;
+  }
+
+  .balance-amount .cents {
+    font-size: 22px;
+    color: var(--muted);
+  }
+
+  .balance-email {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    font-family: var(--mono);
+  }
+
+  /* ── Spinner ── */
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Divider ── */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 20px 0;
+  }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 9999;
+    transition: transform .3s ease;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  }
+
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── Copy button ── */
+  .copy-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: var(--muted);
+    transition: color .15s;
+    font-size: 16px;
+  }
+
+  .copy-btn:hover { color: var(--blue2); }
+
+  /* ── Mobile ── */
+  @media (max-width: 480px) {
+    .coin-grid { grid-template-columns: repeat(3, 1fr); }
+    .hero { padding: 48px 16px 32px; }
+    nav { padding: 0 16px; }
+  }
+</style>
+</head>
+
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    FlowPay
+  </div>
+  <div class="nav-right">
+    <span class="zero-badge">0% Fees</span>
+  </div>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-eyebrow">Nigeria's Cheapest Dollar Bridge</div>
+  <h1>USD in.<br><span>Crypto out.</span></h1>
+  <p>Pay in naira via bank transfer, receive your dollars as crypto — with zero platform fees.</p>
+
+  <div class="flow-diagram">
+    <div class="flow-node">
+      <div class="flow-icon bank">🏦</div>
+      <div class="flow-label">Your Bank</div>
+    </div>
+    <div class="flow-arrow">
+      <div class="flow-line"></div>
+      <div class="flow-chevron">›</div>
+    </div>
+    <div class="flow-node">
+      <div class="flow-icon plat">⚡</div>
+      <div class="flow-label">FlowPay</div>
+    </div>
+    <div class="flow-arrow">
+      <div class="flow-line"></div>
+      <div class="flow-chevron">›</div>
+    </div>
+    <div class="flow-node">
+      <div class="flow-icon crypto">₿</div>
+      <div class="flow-label">Your Wallet</div>
+    </div>
+  </div>
+</div>
+
+<!-- Main panel -->
+<div class="main" id="main-panel">
+
+  <!-- Status banner -->
+  <div class="status-banner" id="status-banner">
+    <span id="status-icon"></span>
+    <span id="status-msg"></span>
+  </div>
+
+  <!-- Balance card (shown after email lookup) -->
+  <div class="balance-card" id="balance-card" style="display:none">
+    <div class="balance-label">Available Balance</div>
+    <div class="balance-amount">
+      $<span id="bal-whole">0</span><span class="cents">.<span id="bal-cents">00</span></span>
+    </div>
+    <div class="balance-email" id="bal-email"></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('deposit')" id="tab-deposit">
+      <span class="tab-icon">⬇️</span> Deposit
+    </button>
+    <button class="tab-btn" onclick="switchTab('withdraw')" id="tab-withdraw">
+      <span class="tab-icon">⬆️</span> Withdraw
+    </button>
+  </div>
+
+  <!-- ── DEPOSIT PANEL ── -->
+  <div id="panel-deposit">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Deposit USD</div>
+        <div class="card-sub">Pay in NGN via Paystack — any bank, card, or USSD</div>
+      </div>
+
+      <div class="field">
+        <label>Full Name</label>
+        <input id="dep-name" type="text" placeholder="Chidi Okafor"/>
+      </div>
+
+      <div class="field">
+        <label>Email Address</label>
+        <input id="dep-email" type="email" placeholder="you@example.com" oninput="loadBalance()"/>
+      </div>
+
+      <div class="field">
+        <label>Amount (USD)</label>
+        <input id="dep-amount" type="number" min="5" placeholder="100" oninput="updateDepBreakdown()"/>
+        <div class="quick-picks">
+          <button class="qp-btn" onclick="setAmt(50)">$50</button>
+          <button class="qp-btn" onclick="setAmt(100)">$100</button>
+          <button class="qp-btn" onclick="setAmt(250)">$250</button>
+          <button class="qp-btn" onclick="setAmt(500)">$500</button>
+          <button class="qp-btn" onclick="setAmt(1000)">$1,000</button>
+        </div>
+      </div>
+
+      <div class="breakdown" id="dep-breakdown">
+        <div class="brow">
+          <span class="label">Amount (USD)</span>
+          <span class="value" id="db-usd">—</span>
+        </div>
+        <div class="brow">
+          <span class="label">Exchange rate</span>
+          <span class="value" id="db-rate">—</span>
+        </div>
+        <div class="brow">
+          <span class="label">Platform fee</span>
+          <span class="fee-zero">FREE ✦</span>
+        </div>
+        <div class="brow total">
+          <span class="label">You pay (NGN)</span>
+          <span class="value" id="db-ngn">—</span>
+        </div>
+      </div>
+
+      <button class="btn-primary" id="dep-btn" onclick="initDeposit()">
+        Pay via Paystack
+      </button>
+    </div>
+  </div>
+
+  <!-- ── WITHDRAW PANEL ── -->
+  <div id="panel-withdraw" style="display:none">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Withdraw to Crypto</div>
+        <div class="card-sub">Receive crypto directly to your wallet — zero platform fee</div>
+      </div>
+
+      <div class="field">
+        <label>Email (must match your deposit)</label>
+        <input id="wd-email" type="email" placeholder="you@example.com" oninput="loadBalance()"/>
+      </div>
+
+      <div class="field">
+        <label>Choose Coin</label>
+        <div class="coin-grid" id="coin-grid">
+          <button class="coin-btn selected" data-coin="btc" data-net="Bitcoin" onclick="selectCoin(this)">
+            <span class="coin-emoji">₿</span>
+            <span class="coin-name">BTC</span>
+            <span class="coin-net">Bitcoin</span>
+          </button>
+          <button class="coin-btn" data-coin="eth" data-net="ERC-20" onclick="selectCoin(this)">
+            <span class="coin-emoji">Ξ</span>
+            <span class="coin-name">ETH</span>
+            <span class="coin-net">ERC-20</span>
+          </button>
+          <button class="coin-btn" data-coin="usdttrc20" data-net="TRC-20" onclick="selectCoin(this)">
+            <span class="coin-emoji">₮</span>
+            <span class="coin-name">USDT</span>
+            <span class="coin-net">TRC-20</span>
+          </button>
+          <button class="coin-btn" data-coin="usdterc20" data-net="ERC-20" onclick="selectCoin(this)">
+            <span class="coin-emoji">₮</span>
+            <span class="coin-name">USDT</span>
+            <span class="coin-net">ERC-20</span>
+          </button>
+          <button class="coin-btn" data-coin="sol" data-net="Solana" onclick="selectCoin(this)">
+            <span class="coin-emoji">◎</span>
+            <span class="coin-name">SOL</span>
+            <span class="coin-net">Solana</span>
+          </button>
+          <button class="coin-btn" data-coin="usdcsol" data-net="Solana" onclick="selectCoin(this)">
+            <span class="coin-emoji">🔵</span>
+            <span class="coin-name">USDC</span>
+            <span class="coin-net">Solana</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Amount (USD)</label>
+        <input id="wd-amount" type="number" min="1" placeholder="50" oninput="updateWdBreakdown()"/>
+      </div>
+
+      <div class="breakdown" id="wd-breakdown">
+        <div class="brow">
+          <span class="label">You send (USD)</span>
+          <span class="value" id="wb-usd">—</span>
+        </div>
+        <div class="brow">
+          <span class="label">Platform fee</span>
+          <span class="fee-zero">FREE ✦</span>
+        </div>
+        <div class="brow">
+          <span class="label">Network fee</span>
+          <span class="value" id="wb-netfee">via NOWPayments</span>
+        </div>
+        <div class="brow total">
+          <span class="label">You receive</span>
+          <span class="value" id="wb-receive">—</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Wallet Address</label>
+        <input id="wd-wallet" type="text" placeholder="Paste your wallet address"/>
+      </div>
+
+      <button class="btn-primary" id="wd-btn" onclick="submitWithdraw()">
+        Withdraw Now
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- History -->
+<div class="history-section" id="history-section" style="display:none">
+  <div class="history-title">📋 Recent Transactions</div>
+  <div id="tx-list"></div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+  // ── Config ─────────────────────────────────────────────────────────────────
+  const PAYSTACK_PUBLIC_KEY = "{{ paystack_public_key }}";
+  let currentRate  = 1380;
+  let selectedCoin = "btc";
+  let wdEstimate   = null;
+  let balanceTimer = null;
+
+  // ── Tab switching ───────────────────────────────────────────────────────────
+  function switchTab(tab) {
+    document.getElementById("panel-deposit").style.display  = tab === "deposit"  ? "" : "none";
+    document.getElementById("panel-withdraw").style.display = tab === "withdraw" ? "" : "none";
+    document.getElementById("tab-deposit").classList.toggle("active",  tab === "deposit");
+    document.getElementById("tab-withdraw").classList.toggle("active", tab === "withdraw");
+    clearStatus();
+    loadBalance();
+  }
+
+  // ── Status banner ───────────────────────────────────────────────────────────
+  function showStatus(type, icon, msg) {
+    const b = document.getElementById("status-banner");
+    b.className = `status-banner show ${type}`;
+    document.getElementById("status-icon").textContent = icon;
+    document.getElementById("status-msg").textContent  = msg;
+    b.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function clearStatus() {
+    document.getElementById("status-banner").className = "status-banner";
+  }
+
+  // ── Toast ───────────────────────────────────────────────────────────────────
+  function toast(icon, msg) {
+    const t = document.getElementById("toast");
+    t.innerHTML = `<span>${icon}</span> ${msg}`;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 2800);
+  }
+
+  // ── Quick picks ─────────────────────────────────────────────────────────────
+  function setAmt(val) {
+    document.getElementById("dep-amount").value = val;
+    document.querySelectorAll(".qp-btn").forEach(b => b.classList.remove("active"));
+    event.target.classList.add("active");
+    updateDepBreakdown();
+  }
+
+  // ── Deposit breakdown ───────────────────────────────────────────────────────
+  async function updateDepBreakdown() {
+    const amt = parseFloat(document.getElementById("dep-amount").value);
+    if (!amt || amt <= 0) { document.getElementById("dep-breakdown").classList.remove("show"); return; }
+
+    // Fetch live rate
+    try {
+      const r = await fetch("/api/balance/__rate__");  // placeholder; we'll compute inline
+    } catch {}
+
+    document.getElementById("dep-breakdown").classList.add("show");
+    document.getElementById("db-usd").textContent  = `$${amt.toFixed(2)}`;
+    document.getElementById("db-rate").textContent = `₦${currentRate.toLocaleString()}/USD`;
+    document.getElementById("db-ngn").textContent  = `₦${(amt * currentRate).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2})}`;
+  }
+
+  // ── Coin selection ──────────────────────────────────────────────────────────
+  function selectCoin(btn) {
+    document.querySelectorAll(".coin-btn").forEach(b => b.classList.remove("selected"));
+    btn.classList.add("selected");
+    selectedCoin = btn.dataset.coin;
+    updateWdBreakdown();
+  }
+
+  // ── Withdraw breakdown ──────────────────────────────────────────────────────
+  let wdTimer = null;
+  async function updateWdBreakdown() {
+    const amt = parseFloat(document.getElementById("wd-amount").value);
+    if (!amt || amt <= 0) { document.getElementById("wd-breakdown").classList.remove("show"); return; }
+
+    document.getElementById("wd-breakdown").classList.add("show");
+    document.getElementById("wb-usd").textContent     = `$${amt.toFixed(2)}`;
+    document.getElementById("wb-receive").textContent = "Fetching…";
+
+    clearTimeout(wdTimer);
+    wdTimer = setTimeout(async () => {
+      try {
+        const r = await fetch("/api/withdraw/estimate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount_usd: amt, currency: selectedCoin })
+        });
+        const d = await r.json();
+        if (d.estimated_amount) {
+          const coin = selectedCoin.toUpperCase().replace("TRC20","").replace("ERC20","").replace("SOL","");
+          document.getElementById("wb-receive").textContent = `${parseFloat(d.estimated_amount).toPrecision(6)} ${selectedCoin.toUpperCase()}`;
+        }
+      } catch {
+        document.getElementById("wb-receive").textContent = "—";
+      }
+    }, 600);
+  }
+
+  // ── Balance loader ──────────────────────────────────────────────────────────
+  function getEmail() {
+    const panel = document.getElementById("panel-deposit").style.display !== "none" ? "dep" : "wd";
+    return document.getElementById(`${panel}-email`).value.trim();
+  }
+
+  async function loadBalance() {
+    const email = getEmail();
+    if (!email || !email.includes("@")) {
+      document.getElementById("balance-card").style.display = "none";
+      document.getElementById("history-section").style.display = "none";
+      return;
+    }
+    try {
+      const r = await fetch(`/api/balance/${encodeURIComponent(email)}`);
+      const d = await r.json();
+      const bal = parseFloat(d.balance || 0);
+      const [whole, cents] = bal.toFixed(2).split(".");
+      document.getElementById("bal-whole").textContent = parseInt(whole).toLocaleString();
+      document.getElementById("bal-cents").textContent = cents;
+      document.getElementById("bal-email").textContent = email;
+      document.getElementById("balance-card").style.display = "";
+
+      // Load history
+      loadHistory(email);
+    } catch {}
+  }
+
+  async function loadHistory(email) {
+    try {
+      const r = await fetch(`/api/history/${encodeURIComponent(email)}`);
+      const d = await r.json();
+      const all = [
+        ...d.deposits.map(x => ({ ...x, type: "dep" })),
+        ...d.withdrawals.map(x => ({ ...x, type: "wd" }))
+      ].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 10);
+
+      if (!all.length) { document.getElementById("history-section").style.display = "none"; return; }
+
+      document.getElementById("history-section").style.display = "";
+      document.getElementById("tx-list").innerHTML = all.map(tx => {
+        const isD = tx.type === "dep";
+        const time = new Date(tx.created_at + "Z").toLocaleString();
+        return `
+          <div class="tx-item">
+            <div class="tx-left">
+              <div class="tx-icon ${tx.type}">${isD ? "⬇️" : "⬆️"}</div>
+              <div>
+                <div class="tx-desc">${isD ? "Deposit" : `Withdraw · ${(tx.coin||"").toUpperCase()}`}</div>
+                <div class="tx-time">${time}</div>
+              </div>
+            </div>
+            <div class="tx-right">
+              <div class="tx-amount ${tx.type}">${isD ? "+" : "−"}$${parseFloat(tx.amount_usd).toFixed(2)}</div>
+              <span class="tx-status ${tx.status}">${tx.status}</span>
+            </div>
+          </div>`;
+      }).join("");
+    } catch {}
+  }
+
+  // ── Deposit flow ────────────────────────────────────────────────────────────
+  async function initDeposit() {
+    const name   = document.getElementById("dep-name").value.trim();
+    const email  = document.getElementById("dep-email").value.trim();
+    const amount = parseFloat(document.getElementById("dep-amount").value);
+
+    if (!name)            { showStatus("error","❌","Enter your full name."); return; }
+    if (!email || !email.includes("@")) { showStatus("error","❌","Enter a valid email."); return; }
+    if (!amount || amount < 5)   { showStatus("error","❌","Minimum deposit is $5."); return; }
+
+    const btn = document.getElementById("dep-btn");
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span> Connecting to Paystack…`;
+
+    clearStatus();
+
+    try {
+      const r = await fetch("/api/deposit/init", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, amount_usd: amount })
+      });
+      const d = await r.json();
+
+      if (d.error) { showStatus("error","❌", d.error); btn.disabled=false; btn.textContent="Pay via Paystack"; return; }
+
+      // Update displayed rate
+      currentRate = d.rate;
+      updateDepBreakdown();
+
+      // Launch Paystack popup
+      const handler = PaystackPop.setup({
+        key:       PAYSTACK_PUBLIC_KEY,
+        email:     email,
+        amount:    Math.round(d.amount_ngn * 100),
+        currency:  "NGN",
+        ref:       d.reference,
+        metadata: { name, amount_usd: amount },
+        onClose: function() {
+          btn.disabled = false;
+          btn.textContent = "Pay via Paystack";
+          showStatus("info","ℹ️","Payment window closed. Your reference: " + d.reference);
+        },
+        callback: function(response) {
+          btn.disabled = false;
+          btn.textContent = "Pay via Paystack";
+          if (response.status === "success") {
+            showStatus("success","✅",`Payment confirmed! $${amount.toFixed(2)} credited. Ref: ${d.reference}`);
+            toast("🎉","Deposit successful!");
+            loadBalance();
+          } else {
+            showStatus("error","❌","Payment not completed. Try again.");
+          }
+        }
+      });
+      handler.openIframe();
+
+    } catch (e) {
+      showStatus("error","❌","Network error. Please try again.");
+      btn.disabled = false;
+      btn.textContent = "Pay via Paystack";
+    }
+  }
+
+  // ── Withdraw flow ───────────────────────────────────────────────────────────
+  async function submitWithdraw() {
+    const email  = document.getElementById("wd-email").value.trim();
+    const amount = parseFloat(document.getElementById("wd-amount").value);
+    const wallet = document.getElementById("wd-wallet").value.trim();
+
+    if (!email || !email.includes("@")) { showStatus("error","❌","Enter a valid email."); return; }
+    if (!amount || amount <= 0)         { showStatus("error","❌","Enter a valid amount."); return; }
+    if (!wallet)                        { showStatus("error","❌","Enter your wallet address."); return; }
+
+    const btn = document.getElementById("wd-btn");
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spinner"></span> Processing…`;
+    clearStatus();
+
+    try {
+      const r = await fetch("/api/withdraw/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          amount_usd: amount,
+          coin: selectedCoin,
+          network: document.querySelector(".coin-btn.selected")?.dataset.net || "",
+          wallet_address: wallet
+        })
+      });
+      const d = await r.json();
+
+      if (d.error) {
+        showStatus("error","❌", d.error);
+      } else {
+        showStatus("success","✅",
+          `Withdrawal of $${amount.toFixed(2)} submitted. ID: ${d.withdrawal_id}`);
+        toast("🚀","Withdrawal sent!");
+        document.getElementById("wd-amount").value = "";
+        document.getElementById("wd-wallet").value = "";
+        document.getElementById("wd-breakdown").classList.remove("show");
+        loadBalance();
+      }
+    } catch (e) {
+      showStatus("error","❌","Network error. Please try again.");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Withdraw Now";
+    }
+  }
+
+  // ── URL param handling (after Paystack redirect) ───────────────────────────
+  (function checkUrlParams() {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("status") === "success") {
+      showStatus("success","✅","Payment confirmed! Your balance has been updated.");
+      toast("🎉","Deposit successful!");
+      window.history.replaceState({}, "", "/");
+    } else if (p.get("status") === "failed") {
+      showStatus("error","❌","Payment failed. Please try again.");
+      window.history.replaceState({}, "", "/");
+    }
+  })();
+
+  // ── Fetch live rate on load ─────────────────────────────────────────────────
+  (async function fetchRate() {
+    try {
+      const r = await fetch("https://open.er-api.com/v6/latest/USD");
+      const d = await r.json();
+      if (d.rates && d.rates.NGN) currentRate = d.rates.NGN;
+    } catch {}
+  })();
+</script>
+
+</body>
+</html>
